@@ -9,11 +9,24 @@ export function getHourDisplay(hour: number): string {
 }
 
 export function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0]
+  // Get Vietnam timezone date
+  const vietnamTime = new Date().toLocaleString("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit", 
+    day: "2-digit"
+  })
+  return vietnamTime
 }
 
 export function getCurrentHour(): number {
-  return new Date().getHours()
+  // Get Vietnam timezone hour
+  const vietnamTime = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour12: false,
+    hour: "2-digit"
+  })
+  return parseInt(vietnamTime)
 }
 
 export function formatCurrency(amount: number): string {

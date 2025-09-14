@@ -11,15 +11,36 @@ import { Toaster } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Settings, BarChart3, TrendingUp } from 'lucide-react'
 import { motion } from 'framer-motion'
+import dynamic from 'next/dynamic'
+
+
+// Dynamic import với SSR disabled
+const ParticleBackground = dynamic(() => import('@/components/ParticleBackground'), {
+  ssr: false,
+});
 
 export default function TradingDashboard() {
   const [schedule, setSchedule] = useState<DailySchedule | null>(null)
   const [sessions, setSessions] = useState<TradingSession[]>([])
   const [loading, setLoading] = useState(true)
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [statisticsKey, setStatisticsKey] = useState(0) // Force re-render statistics
 
   useEffect(() => {
     initializeData()
+    
+    // Check for date change every minute
+    const interval = setInterval(() => {
+      const currentDate = getTodayDate()
+      if (schedule && schedule.date !== currentDate) {
+        // Date changed, reset for new day
+        setSchedule(null)
+        setSessions([])
+        setScheduleModalOpen(true)
+      }
+    }, 60000) // Check every minute
+    
+    return () => clearInterval(interval)
   }, [])
 
   const initializeData = async () => {
@@ -67,9 +88,15 @@ export default function TradingDashboard() {
     setSessions(prev => {
       const existing = prev.find(s => s.hour === newSession.hour)
       if (existing) {
-        return prev.map(s => s.hour === newSession.hour ? newSession : s)
+        const updated = prev.map(s => s.hour === newSession.hour ? newSession : s)
+        // Force statistics refresh
+        setStatisticsKey(prev => prev + 1)
+        return updated
       } else {
-        return [...prev, newSession].sort((a, b) => a.hour - b.hour)
+        const updated = [...prev, newSession].sort((a, b) => a.hour - b.hour)
+        // Force statistics refresh
+        setStatisticsKey(prev => prev + 1)
+        return updated
       }
     })
   }
@@ -83,9 +110,9 @@ export default function TradingDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="app-container min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* <ParticleBackground /> */}
       <Toaster position="top-center" />
-      
       {/* Header */}
       <motion.header 
         className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-10"
@@ -129,7 +156,7 @@ export default function TradingDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <StatisticsDashboard />
+          <StatisticsDashboard key={statisticsKey} />
         </motion.div>
 
         {/* Trading Grid */}

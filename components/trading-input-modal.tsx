@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { getHourDisplay, formatCurrency, calculatePenalty } from '@/lib/trading-utils'
 import { AlertTriangle, TrendingUp } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { TradingSession } from '@/types/trading'
 
 interface TradingInputModalProps {
   open: boolean
@@ -17,6 +18,7 @@ interface TradingInputModalProps {
   kpi: number
   onSubmit: (data: { balance: number; token: string }) => void
   previousLoss?: number
+  existingSession?: TradingSession | null
 }
 
 export function TradingInputModal({ 
@@ -25,15 +27,28 @@ export function TradingInputModal({
   hour, 
   kpi, 
   onSubmit,
-  previousLoss = 0
+  previousLoss = 0,
+  existingSession = null
 }: TradingInputModalProps) {
-  const [balance, setBalance] = useState('')
-  const [token, setToken] = useState('')
+  const [balance, setBalance] = useState(existingSession?.balance?.toString() || '')
+  const [token, setToken] = useState(existingSession?.token || '')
   const [loading, setLoading] = useState(false)
+
+  // Update form when existingSession changes
+  useEffect(() => {
+    if (existingSession) {
+      setBalance(existingSession.balance.toString())
+      setToken(existingSession.token || '')
+    } else {
+      setBalance('')
+      setToken('')
+    }
+  }, [existingSession])
 
   const requiredAmount = previousLoss > 0 ? calculatePenalty(previousLoss, kpi) : kpi
   const balanceNum = parseFloat(balance) || 0
-  const isValidAmount = balanceNum >= requiredAmount
+  // Allow negative numbers, only check minimum for positive entries when there's a previous loss
+  const isValidAmount = existingSession || balanceNum !== 0 || previousLoss === 0 || balanceNum >= requiredAmount
 
   const handleSubmit = async () => {
     if (!balance) {
@@ -41,7 +56,8 @@ export function TradingInputModal({
       return
     }
 
-    if (balanceNum < requiredAmount) {
+    // Only enforce minimum requirement for new entries with previous loss
+    if (!existingSession && previousLoss > 0 && balanceNum > 0 && balanceNum < requiredAmount) {
       toast.error(`Số dư tối thiểu phải là ${formatCurrency(requiredAmount)}!`)
       return
     }
@@ -71,7 +87,7 @@ export function TradingInputModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-blue-600" />
-            Nhập Kết Quả Trading
+            {existingSession ? 'Chỉnh Sửa' : 'Nhập'} Kết Quả Trading
           </DialogTitle>
           <DialogDescription>
             Khung giờ: <strong>{getHourDisplay(hour)}</strong>
@@ -102,13 +118,15 @@ export function TradingInputModal({
               step="0.01"
               value={balance}
               onChange={(e) => setBalance(e.target.value)}
-              placeholder="Nhập số dư (âm nếu lỗ)"
+              placeholder="Nhập số dư (âm nếu lỗ, dương nếu lãi)"
               className="mt-1"
             />
             <div className="flex items-center justify-between mt-1">
-              <Badge variant={isValidAmount ? "default" : "destructive"} className="text-xs">
-                Tối thiểu: {formatCurrency(requiredAmount)}
-              </Badge>
+              {!existingSession && previousLoss > 0 && (
+                <Badge variant={isValidAmount ? "default" : "destructive"} className="text-xs">
+                  Tối thiểu: {formatCurrency(requiredAmount)}
+                </Badge>
+              )}
               {balanceNum !== 0 && (
                 <span className={`text-sm font-medium ${balanceNum >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(balanceNum)}
@@ -138,9 +156,12 @@ export function TradingInputModal({
           <Button
             onClick={handleSubmit}
             disabled={loading || !balance}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+            className={existingSession 
+              ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+            }
           >
-            {loading ? 'Đang lưu...' : 'Lưu Kết Quả'}
+            {loading ? 'Đang lưu...' : existingSession ? 'Cập Nhật' : 'Lưu Kết Quả'}
           </Button>
         </DialogFooter>
       </DialogContent>

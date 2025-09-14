@@ -19,6 +19,7 @@ interface HourlyGridProps {
 export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridProps) {
   const [selectedHour, setSelectedHour] = useState<number | null>(null)
   const [inputModalOpen, setInputModalOpen] = useState(false)
+  const [selectedSession, setSelectedSession] = useState<TradingSession | null>(null)
 
   const getSessionForHour = (hour: number) => {
     return sessions.find(s => s.hour === hour)
@@ -34,12 +35,7 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
 
   const handleHourClick = (hour: number) => {
     const existingSession = getSessionForHour(hour)
-    if (existingSession) {
-      // Show existing session details
-      toast(`${getHourDisplay(hour)}: ${formatCurrency(existingSession.balance)}${existingSession.token ? ` (${existingSession.token})` : ''}`)
-      return
-    }
-
+    setSelectedSession(existingSession || null)
     setSelectedHour(hour)
     setInputModalOpen(true)
   }
@@ -48,8 +44,13 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
     if (selectedHour === null) return
 
     try {
-      const response = await fetch('/api/trading-sessions', {
-        method: 'POST',
+      const method = selectedSession ? 'PUT' : 'POST'
+      const url = selectedSession 
+        ? `/api/trading-sessions/${selectedSession._id}`
+        : '/api/trading-sessions'
+        
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -64,6 +65,7 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
 
       if (response.ok) {
         const newSession: TradingSession = {
+          _id: selectedSession?._id,
           date: schedule.date,
           hour: selectedHour,
           balance: data.balance,
@@ -73,7 +75,7 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
           updated_at: new Date()
         }
         onSessionUpdate(newSession)
-        toast.success(`Đã lưu kết quả trading ${getHourDisplay(selectedHour)}!`)
+        toast.success(`Đã ${selectedSession ? 'cập nhật' : 'lưu'} kết quả trading ${getHourDisplay(selectedHour)}!`)
       } else {
         throw new Error('Failed to save session')
       }
@@ -103,25 +105,36 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
                 className={`${colors.bg} ${colors.border} border-2 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden`}
                 onClick={() => handleHourClick(hour)}
               >
-                <div className="p-4 h-24 flex flex-col justify-between">
-                  <div className="flex-1 flex items-center justify-center">
+                <div className="p-3 h-24 flex flex-col relative">
+                  {/* Token badge in top-right corner */}
+                  {session?.token && (
+                    <Badge 
+                      className={`absolute top-1 right-1 text-xs px-1 py-0 h-4 ${
+                        session.balance >= 0 
+                          ? 'bg-green-100 text-green-800 border-green-200' 
+                          : 'bg-red-100 text-red-800 border-red-200'
+                      } border`}
+                    >
+                      {session.token}
+                    </Badge>
+                  )}
+                  
+                  {/* Main balance display - centered */}
+                  <div className="flex-1 flex items-center justify-center pt-2">
                     {session ? (
-                      <div className={`text-lg font-bold ${colors.text} text-center`}>
+                      <div className={`text-base font-bold ${colors.text} text-center leading-tight`}>
                         {formatCurrency(session.balance)}
                       </div>
                     ) : (
                       <Plus className="h-6 w-6 text-gray-400" />
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm font-medium ${colors.text}`}>
+                  
+                  {/* Hour display at bottom - centered */}
+                  <div className="flex items-center justify-center">
+                    <span className={`text-xs font-medium ${colors.text}`}>
                       {getHourDisplay(hour)}
                     </span>
-                    {session?.token && (
-                      <Badge variant="secondary" className="text-xs">
-                        {session.token}
-                      </Badge>
-                    )}
                   </div>
                 </div>
                 {isEmpty && (
@@ -140,6 +153,7 @@ export function HourlyGrid({ schedule, sessions, onSessionUpdate }: HourlyGridPr
         kpi={schedule.kpi_per_hour}
         onSubmit={handleSubmit}
         previousLoss={selectedHour ? getPreviousHourLoss(selectedHour) : 0}
+        existingSession={selectedSession}
       />
     </>
   )
