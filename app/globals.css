@@ -8,46 +8,7 @@
   --background-end-rgb: 255, 255, 255;
 }
 
-.app-container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
 
-.content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  color: white;
-  z-index: 1;
-}
-.bubble {
-  position: absolute;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.bubble:hover {
-  transform: scale(1.2) translate(-50%, -50%) !important; /* Phóng to từ tâm */
-  z-index: 1;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-}
-
-.bubbleText {
-  color: white;
-  text-align: center;
-  font-weight: bold;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
-}
 
 @media (prefers-color-scheme: dark) {
   :root {
